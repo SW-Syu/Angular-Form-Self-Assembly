@@ -1,0 +1,409 @@
+<nz-layout class="designer-layout">
+  <nz-splitter>
+    <nz-splitter-panel [nzCollapsible]="true" nzDefaultSize="18%" nzMin="16%">
+      <!-- 左側工具箱 -->
+      <nz-layout>
+        <nz-header>
+          <div>
+            <h2>組件庫</h2>
+          </div>
+        </nz-header>
+        <nz-content style="background-color: white;">
+          <div nz-row [nzGutter]="[16, 16]" cdkDropList [cdkDropListData]="componentTemplates"
+            [cdkDropListConnectedTo]="getConnectedDropLists()" cdkDropListSortingDisabled cdkDropListHasAnchor>
+            <nz-col *ngFor="let template of componentTemplates" cdkDrag [cdkDragData]="template" nzSpan="12">
+              <nz-tag nzColor="#f2f6fc" class="component" nzBordered="true">
+                <nz-icon [nzType]="template.icon" nzTheme="outline"></nz-icon>
+                <span>{{ template.label }}</span>
+              </nz-tag>
+            </nz-col>
+          </div>
+        </nz-content>
+      </nz-layout>
+    </nz-splitter-panel>
+    <nz-splitter-panel nzMin="30%">
+      <!-- 中間設計區域 -->
+      <nz-layout>
+        <nz-header>
+          <div nz-flex nzJustify="space-between">
+            <div>
+              <h2>
+                {{ isPreviewMode() ? '表單預覽' : '表單設計器' }}
+              </h2>
+            </div>
+            <div>
+              <button nz-button nzType="default" [nzLoading]="false" (click)="togglePreviewMode()" nzSize="small"
+                style="margin-right: 8px;">
+                <span nz-icon [nzType]="isPreviewMode() ? 'edit' : 'eye'"></span>
+                {{ isPreviewMode() ? '設計模式' : '預覽模式' }}
+              </button>
+              <button nz-button nzType="default" nzDanger (click)="clearAllComponents()" nzSize="small"
+                [disabled]="formComponents().length === 0">
+                <span nz-icon nzType="delete"></span>
+                清空
+              </button>
+            </div>
+          </div>
+
+        </nz-header>
+
+        <!-- 設計模式 -->
+        <nz-content *ngIf="!isPreviewMode()">
+          <div cdkDropList [cdkDropListData]="formComponents()" id="componentList" class="designer-form"
+            [cdkDropListConnectedTo]="getConnectedDropListIds()" (cdkDropListDropped)="drop($event)">
+            <ng-container
+              *ngTemplateOutlet="recursiveList; context: { $implicit: formComponents(), parent: null }"></ng-container>
+
+            <!-- 空狀態提示 -->
+            <div *ngIf="formComponents().length === 0" class="empty-canvas">
+              <nz-empty nzNotFoundImage="simple" nzNotFoundContent="拖拽左側組件到這裡開始設計表單"></nz-empty>
+            </div>
+          </div>
+
+          <ng-template #recursiveList let-nodes let-parent="parent">
+            <div class="drop-container" cdkDropList [cdkDropListData]="nodes"
+              [cdkDropListConnectedTo]="getConnectedDropListIds()" [id]="getDropListId(parent)"
+              (cdkDropListDropped)="onDrop($event, parent)">
+              <div *ngFor="let node of nodes" cdkDrag (click)="selectNode(node)" class="form-node"
+                [class.selected]="selectedComponent()?.id === node.id" (click)="selectComponent(node)">
+                <nz-card [nzTitle]="node.label" [nzExtra]="deleteButtonTemplate">
+                  <ng-container [ngSwitch]="node.type">
+                    <!-- 輸入框 -->
+                    <input *ngSwitchCase="ComponentType.INPUT" nz-input [placeholder]="node.placeholder" disabled />
+
+                    <!-- 數字輸入 -->
+                    <nz-input-number *ngSwitchCase="ComponentType.NUMBER" [nzPlaceHolder]="node.placeholder"
+                      disabled></nz-input-number>
+
+                    <!-- 下拉選單 -->
+                    <nz-select *ngSwitchCase="ComponentType.SELECT" disabled [nzPlaceHolder]="node.placeholder">
+                      <nz-option *ngFor="let opt of node.options" [nzValue]="opt" [nzLabel]="opt"></nz-option>
+                    </nz-select>
+
+                    <!-- 日期選擇器 -->
+                    <nz-date-picker *ngSwitchCase="ComponentType.DATEPICKER" disabled
+                      [nzPlaceHolder]="node.placeholder"></nz-date-picker>
+
+                    <!-- 複選框 -->
+                    <label nz-checkbox *ngSwitchCase="ComponentType.CHECKBOX" disabled></label>
+
+
+                    <!-- 單選按鈕 -->
+                    <nz-radio-group *ngSwitchCase="ComponentType.RADIO" disabled>
+                      <label nz-radio *ngFor="let opt of node.options" [nzValue]="opt">{{ opt }}</label>
+                    </nz-radio-group>
+
+                    <!-- 多行文字 -->
+                    <textarea *ngSwitchCase="ComponentType.TEXTAREA" nz-input [placeholder]="node.placeholder"
+                      disabled></textarea>
+
+
+
+
+
+
+                    <ng-container *ngSwitchCase="ComponentType.GROUP">
+                      <ng-container
+                        *ngTemplateOutlet="recursiveList; context: { $implicit: node.children, parent: node }"></ng-container>
+                    </ng-container>
+                  </ng-container>
+
+                  <ng-template #deleteButtonTemplate>
+                    <button nz-button nzType="text" nzDanger nzSize="small"
+                      (click)="removeComponent(node); $event.stopPropagation()">
+                      <span nz-icon nzType="delete"></span>
+                    </button>
+                  </ng-template>
+                </nz-card>
+              </div>
+            </div>
+          </ng-template>
+
+        </nz-content>
+
+        <!-- 預覽模式 -->
+        <div *ngIf="isPreviewMode()" class="preview-container">
+          <form nz-form [nzLayout]="'vertical'" class="preview-form">
+            <div *ngFor="let component of formComponents(); trackBy: trackByFn" class="preview-form-item">
+
+              <!-- Grid 網格預覽 -->
+              <div *ngIf="component.type === 'grid'" class="preview-grid">
+                <nz-row>
+                  <nz-col [nzSpan]="component.nzSpan || 12">
+                    <nz-card nzSize="small" [nzTitle]="component.label" class="preview-grid-card">
+                      <div *ngFor="let childComponent of component.children" class="preview-child-item">
+
+                        <!-- 子組件預覽渲染 -->
+                        <ng-container [ngSwitch]="childComponent.type">
+                          <!-- 輸入框 -->
+                          <nz-form-item *ngSwitchCase="'input'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <input nz-input [placeholder]="childComponent.placeholder || ''"
+                                [(ngModel)]="childComponent.value" [name]="childComponent.id">
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 多行文字 -->
+                          <nz-form-item *ngSwitchCase="'textarea'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <textarea nz-input [placeholder]="childComponent.placeholder || ''"
+                                [(ngModel)]="childComponent.value" [name]="childComponent.id"></textarea>
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 數字輸入 -->
+                          <nz-form-item *ngSwitchCase="'number'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <nz-input-number [nzPlaceHolder]="childComponent.placeholder || ''"
+                                [(ngModel)]="childComponent.value" [name]="childComponent.id"
+                                style="width: 100%;"></nz-input-number>
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 下拉選單 -->
+                          <nz-form-item *ngSwitchCase="'select'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <nz-select [nzPlaceHolder]="childComponent.placeholder || ''"
+                                [(ngModel)]="childComponent.value" [name]="childComponent.id" style="width: 100%;">
+                                <nz-option *ngFor="let option of childComponent.options" [nzValue]="option"
+                                  [nzLabel]="option"></nz-option>
+                              </nz-select>
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 日期選擇器 -->
+                          <nz-form-item *ngSwitchCase="'datepicker'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <nz-date-picker [nzPlaceHolder]="childComponent.placeholder || ''"
+                                [(ngModel)]="childComponent.value" [name]="childComponent.id"
+                                style="width: 100%;"></nz-date-picker>
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 複選框 -->
+                          <nz-form-item *ngSwitchCase="'checkbox'">
+                            <nz-form-control>
+                              <label nz-checkbox [(ngModel)]="childComponent.value" [name]="childComponent.id">
+                                {{ childComponent.label }}
+                                <span *ngIf="childComponent.required" class="required-mark">*</span>
+                              </label>
+                            </nz-form-control>
+                          </nz-form-item>
+
+                          <!-- 單選按鈕 -->
+                          <nz-form-item *ngSwitchCase="'radio'">
+                            <nz-form-label [nzRequired]="childComponent.required">{{ childComponent.label
+                              }}</nz-form-label>
+                            <nz-form-control>
+                              <nz-radio-group [(ngModel)]="childComponent.value" [name]="childComponent.id">
+                                <label nz-radio *ngFor="let option of childComponent.options" [nzValue]="option">{{
+                                  option }}</label>
+                              </nz-radio-group>
+                            </nz-form-control>
+                          </nz-form-item>
+                        </ng-container>
+                      </div>
+                    </nz-card>
+                  </nz-col>
+                </nz-row>
+              </div>
+
+              <!-- 一般組件預覽 -->
+              <ng-container [ngSwitch]="component.type">
+                <!-- 輸入框 -->
+                <nz-form-item *ngSwitchCase="'input'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <input nz-input [placeholder]="component.placeholder || ''" [(ngModel)]="component.value"
+                      name="{{component.id}}">
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 多行文字 -->
+                <nz-form-item *ngSwitchCase="'textarea'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <textarea nz-input [placeholder]="component.placeholder || ''" [(ngModel)]="component.value"
+                      name="{{component.id}}"></textarea>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 數字輸入 -->
+                <nz-form-item *ngSwitchCase="'number'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <nz-input-number [nzPlaceHolder]="component.placeholder || ''" [(ngModel)]="component.value"
+                      name="{{component.id}}" style="width: 100%;"></nz-input-number>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 下拉選單 -->
+                <nz-form-item *ngSwitchCase="'select'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <nz-select [nzPlaceHolder]="component.placeholder || ''" [(ngModel)]="component.value"
+                      name="{{component.id}}" style="width: 100%;">
+                      <nz-option *ngFor="let option of component.options" [nzValue]="option"
+                        [nzLabel]="option"></nz-option>
+                    </nz-select>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 日期選擇器 -->
+                <nz-form-item *ngSwitchCase="'datepicker'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <nz-date-picker [nzPlaceHolder]="component.placeholder || ''" [(ngModel)]="component.value"
+                      name="{{component.id}}" style="width: 100%;"></nz-date-picker>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 複選框 -->
+                <nz-form-item *ngSwitchCase="'checkbox'">
+                  <nz-form-control>
+                    <label nz-checkbox [(ngModel)]="component.value" name="{{component.id}}">
+                      {{ component.label }}
+                      <span *ngIf="component.required" class="required-mark">*</span>
+                    </label>
+                  </nz-form-control>
+                </nz-form-item>
+
+                <!-- 單選按鈕 -->
+                <nz-form-item *ngSwitchCase="'radio'">
+                  <nz-form-label [nzRequired]="component.required">{{ component.label }}</nz-form-label>
+                  <nz-form-control>
+                    <nz-radio-group [(ngModel)]="component.value" name="{{component.id}}">
+                      <label nz-radio *ngFor="let option of component.options" [nzValue]="option">{{ option }}</label>
+                    </nz-radio-group>
+                  </nz-form-control>
+                </nz-form-item>
+              </ng-container>
+            </div>
+
+            <!-- 預覽模式提交按鈕 -->
+            <nz-form-item *ngIf="formComponents().length > 0" class="preview-submit-section">
+              <nz-form-control>
+                <button nz-button nzType="primary" (click)="onPreviewSubmit(formComponents())">
+                  <span nz-icon nzType="check"></span>
+                  提交表單
+                </button>
+                <button nz-button nzType="default" style="margin-left: 8px;" (click)="previewForm()">
+                  <span nz-icon nzType="code"></span>
+                  查看配置
+                </button>
+              </nz-form-control>
+            </nz-form-item>
+
+            <!-- 預覽空狀態 -->
+            <div *ngIf="formComponents().length === 0" class="preview-empty">
+              <nz-empty nzNotFoundImage="simple" nzNotFoundContent="沒有可預覽的表單組件，請先添加組件"></nz-empty>
+            </div>
+          </form>
+        </div>
+      </nz-layout>
+
+    </nz-splitter-panel>
+
+
+    <nz-splitter-panel [nzCollapsible]="true" nzDefaultSize="20%" nzMin="18%" style="background-color: white;">
+      <!-- 右側屬性面板 -->
+      <nz-layout>
+        <nz-header>
+          <div>
+            <h2>屬性設定</h2>
+          </div>
+        </nz-header>
+        <nz-content style="background-color: white;">
+          <div *ngIf="selectedComponent(); else noSelection">
+            <form nz-form nzLayout="vertical">
+              <!-- 標籤 -->
+              <nz-form-item>
+                <nz-form-label>標籤</nz-form-label>
+                <nz-form-control>
+                  <input nz-input [value]="selectedComponent()!.label"
+                    (input)="updateComponent(selectedComponent()!, 'label', $any($event.target).value)">
+                </nz-form-control>
+              </nz-form-item>
+
+              <!-- Grid Span 設定 -->
+              <nz-form-item *ngIf="selectedComponent()!.type === 'grid'">
+                <nz-form-label>Grid Span (1-24)</nz-form-label>
+                <nz-form-control>
+                  <nz-input-number [ngModel]="selectedComponent()!.nzSpan || 12"
+                    (ngModelChange)="updateComponent(selectedComponent()!, 'nzSpan', $event)" [nzMin]="1" [nzMax]="24"
+                    style="width: 100%;"></nz-input-number>
+                </nz-form-control>
+              </nz-form-item>
+
+              <!-- 佔位符 -->
+              <nz-form-item *ngIf="selectedComponent()!.type !== 'checkbox' && selectedComponent()!.type !== 'grid'">
+                <nz-form-label>佔位符</nz-form-label>
+                <nz-form-control>
+                  <input nz-input [value]="selectedComponent()!.placeholder || ''"
+                    (input)="updateComponent(selectedComponent()!, 'placeholder', $any($event.target).value)">
+                </nz-form-control>
+              </nz-form-item>
+
+              <!-- 必填 -->
+              <nz-form-item *ngIf="selectedComponent()!.type !== 'grid'">
+                <nz-form-control>
+                  <label nz-checkbox [ngModel]="selectedComponent()!.required"
+                    (ngModelChange)="updateComponent(selectedComponent()!, 'required', $event)">
+                    必填項目
+                  </label>
+                </nz-form-control>
+              </nz-form-item>
+
+              <!-- 選項設定（用於select和radio）-->
+              <div *ngIf="selectedComponent()!.type === 'select' || selectedComponent()!.type === 'radio'">
+                <nz-divider nzText="選項設定"></nz-divider>
+                <div *ngFor="let option of selectedComponent()!.options; let i = index" class="option-item">
+                  <nz-input-group nzCompact>
+                    <input nz-input style="width: calc(100% - 32px)" [value]="option"
+                      (input)="updateOption(selectedComponent()!, i, $any($event.target).value)">
+                    <button nz-button nzType="primary" nzDanger (click)="removeOption(selectedComponent()!, i)">
+                      <span nz-icon nzType="delete"></span>
+                    </button>
+                  </nz-input-group>
+                </div>
+                <button nz-button nzType="dashed" nzBlock class="add-option-btn"
+                  (click)="addOption(selectedComponent()!)">
+                  <span nz-icon nzType="plus"></span>
+                  添加選項
+                </button>
+              </div>
+
+              <!-- JSON預覽 -->
+              <nz-divider nzText="組件預覽"></nz-divider>
+              <pre class="json-preview">{{ selectedComponent() | json }}</pre>
+            </form>
+          </div>
+
+          <ng-template #noSelection>
+            <nz-empty nzNotFoundImage="simple" nzNotFoundContent="請點擊選擇一個組件來編輯屬性"></nz-empty>
+          </ng-template>
+
+          <nz-divider></nz-divider>
+          <!-- 預覽按鈕 -->
+          <div class="preview-section">
+            <button nz-button nzType="primary" nzBlock (click)="previewForm()">
+              <span nz-icon nzType="eye"></span>
+              預覽表單配置
+            </button>
+          </div>
+        </nz-content>
+      </nz-layout>
+
+    </nz-splitter-panel>
+  </nz-splitter>
+</nz-layout>
