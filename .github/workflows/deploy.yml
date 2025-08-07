@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '19' # Node.js 版本
+          node-version: '22' # Node.js 版本
 
       - name: Install Dependencies
         run: npm install
