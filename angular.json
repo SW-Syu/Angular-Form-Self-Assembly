@@ -96,6 +96,12 @@
             ],
             "scripts": []
           }
+        },
+        "deploy": {
+          "builder": "angular-cli-ghpages:deploy",
+          "options": {
+            "baseHref": "/angular-form-self-assembly/"
+          }
         }
       }
     }
