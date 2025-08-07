@@ -1,5 +1,5 @@
 {
-  "name": "self-assembly",
+  "name": "angular-form-self-assembly",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",

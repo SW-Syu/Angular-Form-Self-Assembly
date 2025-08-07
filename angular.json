@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "self-assembly": {
+    "angular-form-self-assembly": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -17,7 +17,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/self-assembly",
+            "outputPath": "dist/angular-form-self-assembly",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -65,10 +65,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "self-assembly:build:production"
+              "buildTarget": "angular-form-self-assembly:build:production"
             },
             "development": {
-              "buildTarget": "self-assembly:build:development"
+              "buildTarget": "angular-form-self-assembly:build:development"
             }
           },
           "defaultConfiguration": "development"
